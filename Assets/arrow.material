@@ -1,0 +1,29 @@
+material 1344595237_1_<Chocolate>
+{
+  technique
+  {
+    pass
+    {
+      lighting on 
+      ambient 1.0 0.12156862745098 0.0235294117647059 1.0
+      diffuse 1.0 0.12156862745098 0.0235294117647059 1.0
+      // texture size: 5.96685082872928, 12.0
+      texture_unit
+      {
+        texture 1344595237_1_NMBumpsOut.png
+      }
+    }
+  }
+}
+material 1344595237_SketchupDefault
+{
+  technique
+  {
+    pass
+    {
+      lighting on 
+      ambient 1.0 1.0 1.0 1.0
+      diffuse 1.0 1.0 1.0 1.0
+    }
+  }
+}
