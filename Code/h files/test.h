@@ -35,10 +35,11 @@ public:
 		Ogre::Vector3 mVelocity;
 
 protected:
-    virtual void createScene(void);
-	virtual void createBall(void);
-	virtual void createPin(void);
-	virtual void createArrow(void);
+	 void createGamePanel();//creates the different GUI objects
+    virtual void createScene(void);//creates all initial objects needed including GUI
+	virtual void createBall(void);//creates the ball 
+	virtual void createPin(void);//creates the pin
+	virtual void createArrow(void);//creates the arrow
 };
 
 #endif // #ifndef __test_h_

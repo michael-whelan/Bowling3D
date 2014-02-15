@@ -24,29 +24,16 @@ http://code.google.com/p/ogreappwizards/
 
 //-------------------------------------------------------------------------------------
 BaseApplication::BaseApplication(void)
-	: mRoot(0),
-	mCamera(0),
-	mSceneMgr(0),
-	mWindow(0),
-	mResourcesCfg(Ogre::StringUtil::BLANK),
-	mPluginsCfg(Ogre::StringUtil::BLANK),
-	mTrayMgr(0),
-	mCameraMan(0),
-	mDetailsPanel(0),
-	mCursorWasVisible(false),
-	mShutDown(false),
-	mInputManager(0),
-	mMouse(0),
-	mKeyboard(0),
-	ballpow(0),
-	camChange(0),
-	playerNum(1),
-	turnNum(0)
+	: mRoot(0),mCamera(0),mSceneMgr(0),mWindow(0),mResourcesCfg(Ogre::StringUtil::BLANK),mPluginsCfg(Ogre::StringUtil::BLANK),
+	mTrayMgr(0),mCameraMan(0),mCursorWasVisible(false),mShutDown(false),mInputManager(0),mMouse(0),mKeyboard(0),ballpow(0),camChange(0),
+	playerNum(1),turnNum(0),p1Strike(false),p2Strike(false),p1Win(false),p2Win(false),gameState(1),winScore(30),pressZ(false),pressX(false),
+	gameplay(1),menu(true),tutorial(true)
 {
 	tempMove =false;
 	loopSong = false;
 	p1Score = 0;
 	p2Score = 0;
+
 	//setup FMOD
 	FMOD_RESULT result;
 	result = FMOD::System_Create(&FMODsys);     // Create the main system object.
@@ -68,6 +55,7 @@ BaseApplication::BaseApplication(void)
 	result = FMODsys->createSound("C:/CollegeWork/Project/BallThrow.wav", FMOD_DEFAULT|FMOD_3D, 0, &soundThrow);
 	result = FMODsys->createSound("C:/CollegeWork/Project/BallRoll.wav", FMOD_LOOP_NORMAL|FMOD_3D, 0, &soundRoll);
 	result = FMODsys->createSound("C:/CollegeWork/Project/bennyhill.wav", FMOD_LOOP_NORMAL|FMOD_2D, 0, &backgSnd);
+	
 	backgSnd->setMode(FMOD_LOOP_NORMAL);
 	if (result != FMOD_OK)
 	{
@@ -162,25 +150,6 @@ void BaseApplication::createFrameListener(void)
 	mTrayMgr->showFrameStats(OgreBites::TL_BOTTOMLEFT);
 	mTrayMgr->showLogo(OgreBites::TL_BOTTOMRIGHT);
 	mTrayMgr->hideCursor();
-
-	// create a params panel for displaying sample details
-	Ogre::StringVector items;
-	items.push_back("Ball Speed");
-	items.push_back("Power");
-	items.push_back("Player");
-	items.push_back("Shot");
-	items.push_back("Player 1 Score");
-	items.push_back("Player 2 Score");
-	items.push_back("Pins Left");
-	items.push_back("cam.oZ");
-	items.push_back("");
-	items.push_back("Filtering");
-	items.push_back("Poly Mode");
-
-	mDetailsPanel = mTrayMgr->createParamsPanel(OgreBites::TL_NONE, "DetailsPanel", 200, items);
-	mDetailsPanel->setParamValue(9, "Bilinear");
-	mDetailsPanel->setParamValue(10, "Solid");
-	mDetailsPanel->hide();
 
 	mRoot->addFrameListener(this);
 }
@@ -279,9 +248,28 @@ bool BaseApplication::setup(void)
 	createScene();
 
 	createFrameListener();
-
+	CreateTextZones();
 	return true;
 };
+//-------------------------------------------------------------------------------------
+void BaseApplication::CreateTextZones(){
+	if(tutorial){
+		tutorialHeader = tutorialPan->makeTextZone(25,5,100,40,"TUTORIAL");
+
+		//tutorialPan2->mNode->setPosition(0,35,70);
+		tutorialTxt=tutorialPan2->makeTextZone(10,-0,300,30,"Use Z and X to place the ball");
+	}
+
+
+	player= playerPanel->makeTextZone(0,5,300,50,"Player: "+mBallObject->getName());
+	shot= playerPanel->makeTextZone(1,25,300,20,"Shot: "+Ogre::StringConverter::toString(turnNum+1));
+	player1Score= playerPanel->makeTextZone(2,45,300,20,"Player1 Score: "+Ogre::StringConverter::toString(p1Score));
+	player2Score= playerPanel->makeTextZone(3,65,300,20,"Player2 Score: "+Ogre::StringConverter::toString(p2Score));
+	pins= playerPanel->makeTextZone(4,85,300,20,"Pins Standing: "+Ogre::StringConverter::toString(10 - pinManager->getHitPins()));
+
+	menuPanel->makeButton(30,80,240,50,"Play Game")->setPressedCallback(this, &BaseApplication::PlayGame);
+	menuPanel->makeButton(30,140,240,50,"Quit")->setPressedCallback(this, &BaseApplication::QuitGame);
+}
 //-------------------------------------------------------------------------------------
 bool BaseApplication::frameRenderingQueued(const Ogre::FrameEvent& evt)
 {
@@ -297,100 +285,199 @@ bool BaseApplication::frameRenderingQueued(const Ogre::FrameEvent& evt)
 
 
 	mTrayMgr->frameRenderingQueued(evt);
+	if(gameState==gameplay){
+		FMODsys->update();
+		CheckStrike();
+	UpdateBall();
 
-	FMODsys->update();
-		BaseApplication::UpdateBall();
-
-	BaseApplication::UpdateCamera();
+		UpdateCamera();
 
 
-	if (!mTrayMgr->isDialogVisible())
-	{
-		mCameraMan->frameRenderingQueued(evt);   // if dialog isn't up, then update the camera
-		if (mDetailsPanel->isVisible())   // if details panel is visible, then update its contents
-		{
-			mDetailsPanel->setParamValue(0, Ogre::StringConverter::toString(mBallObject->getPower()));
-			mDetailsPanel->setParamValue(1, Ogre::StringConverter::toString(ballpow));
-			if(playerNum == 1)
-				{mDetailsPanel->setParamValue(2, "1");
-			}
-			else
-			{mDetailsPanel->setParamValue(2, "2");
-			}
+		pinManager->update(mBallObject);
+		if(mBallObject->getMove() == true){
 
-			mDetailsPanel->setParamValue(3, Ogre::StringConverter::toString(turnNum+1));
-			mDetailsPanel->setParamValue(4, Ogre::StringConverter::toString(p1Score));
-			mDetailsPanel->setParamValue(5, Ogre::StringConverter::toString(p2Score));
-			mDetailsPanel->setParamValue(6, Ogre::StringConverter::toString(10 - pinManager->getHitPins()));
+			result = FMODsys->createReverb(&reverb);
+			FMOD_REVERB_PROPERTIES prop = FMOD_PRESET_ALLEY;
+			reverb->setProperties(&prop);
+			FMOD_VECTOR pos = {mCamera->getPosition().x, 0.0f,mCamera->getPosition().z };
+			float mindist = 100.0f; 
+			float maxdist = 150.0f;
+			reverb->set3DAttributes(&pos, mindist, maxdist);
+
+			
+			mBallObject->update();
+			channel->setPaused(false);// This is where the sound really starts.
+		}	
+		else{
+			mArrowObject->rotate(mKeyboard);
+			channel->stop();
+		}
+
+		if(mBallObject->getMove()){
+			ballpow=0;
+		}
+
+		if(mBallObject->getSpacePressed()){
+			if(ballpow<mBallObject->getMaxPower())//here
+				ballpow+=0.03;
+		}
+
+		if ( mBallObject->getSpacePressed()) {
+			mForceProgressBar->setValue(ballpow / mBallObject->getMaxPower() );
+		}
+
+
+		Ogre::MaterialManager::getSingleton().setDefaultTextureFiltering(Ogre::TFO_ANISOTROPIC);
+
+		FMOD_VECTOR  listenervel  = { 0.0f, 0.0f, 0.0f };
+
+		FMOD_VECTOR  listenerpos  = { mCamera->getPosition().x, 0.0f, mCamera->getPosition().z };
+
+		FMODsys->set3DListenerAttributes(0, &listenerpos, &listenervel, 0, 0);
+
+		//update position of sound
+		if(channel){
+			FMOD_VECTOR  sourcePos  = { mBallObject->getPosition().x,mBallObject->getPosition().y,mBallObject->getPosition().z };
+			//source is fixed so velocity is zero
+			channel->set3DAttributes(&sourcePos,0);
+		}
+
+		if(drawStats ==true){
+			DrawStats();
+
+		}
+		else{
+			playerPanel->mNode->setPosition(-100, 35,70);
 		}
 	}
-	if(mBallObject->getMove() == true){
-
-		result = FMODsys->createReverb(&reverb);
-		FMOD_REVERB_PROPERTIES prop = FMOD_PRESET_UNDERWATER  ;
-		reverb->setProperties(&prop);
-		FMOD_VECTOR pos = {mCamera->getPosition().x, 0.0f,mCamera->getPosition().z };
-		float mindist = 100.0f; 
-		float maxdist = 150.0f;
-		reverb->set3DAttributes(&pos, mindist, maxdist);
-
-		pinManager->collisions(mBallObject);
-		mBallObject->update();
-		channel->setPaused(false);// This is where the sound really starts.
-	}	
-	else{
-		mArrowObject->rotate(mKeyboard);
-		channel->setPaused(true);
-	}
-
-	if(mBallObject->getMove()){
-		ballpow=0;
-	}
-
-	if(mBallObject->getSpacePressed()){
-		if(ballpow<20)
-		ballpow+=0.03;
-	}
-
-	Ogre::MaterialManager::getSingleton().setDefaultTextureFiltering(Ogre::TFO_ANISOTROPIC);
-
-	FMOD_VECTOR  listenervel  = { 0.0f, 0.0f, 0.0f };
-
-	FMOD_VECTOR  listenerpos  = { mCamera->getPosition().x, 0.0f, mCamera->getPosition().z };
-
-	FMODsys->set3DListenerAttributes(0, &listenerpos, &listenervel, 0, 0);
-
-	//update position of sound
-	if(channel){
-		FMOD_VECTOR  sourcePos  = { mBallObject->getPosition().x,mBallObject->getPosition().y,mBallObject->getPosition().z };
-		//source is fixed so velocity is zero
-		channel->set3DAttributes(&sourcePos,0);
-	}
-
+	UpdateMenu();
+	
+	DrawTutorial();
+	CheckWin();
+	PinSounds();
 	return true;
 }
 //-------------------------------------------------------------------------------------
-void BaseApplication::PlayerUpdate(){
-	if (playerNum == 1)
+void BaseApplication::UpdateMenu(){
+	if (menu){
+		menuPanel->mNode->setPosition(0,34,72);
+		
+		mCamera->lookAt(Ogre::Vector3(menuPanel->mNode->getPosition().x,menuPanel->mNode->getPosition().y,menuPanel->mNode->getPosition().z));
+
+	}
+	else 
 	{
-		p1Score+= pinManager->getHitPins();
-		if(mBallObject->getName() != "1"){
-			mBallObject->setName("1");
+		menuPanel->mNode->setPosition(-100, 35,70);
+	}
+}
+//-------------------------------------------------------------------------------------
+bool BaseApplication::PlayGame(Gui3D::PanelElement* e){
+	menu = false;
+	return true;
+}
+//-------------------------------------------------------------------------------------
+bool BaseApplication::QuitGame(Gui3D::PanelElement* e){
+	mShutDown = true;
+	return true;
+}
+//-------------------------------------------------------------------------------------
+void BaseApplication::DrawTutorial(){
+
+	if(!tutorial){
+		tutorialPan->mNode->setPosition(-100, 35,70);	
+		tutorialPan2->mNode->setPosition(-100, 35,70);
+
+	}
+
+}
+//-------------------------------------------------------------------------------------
+void BaseApplication::PlayerUpdate(){
+	if(!tutorial){
+		if (playerNum == 1){
+			if(p1Strike){
+				p2Score+= pinManager->getHitPins()*2;
+				p1Strike = false;
+			}
+			else{
+				p2Score+= pinManager->getHitPins();
+			}
+			if(mBallObject->getName() != "1"){
+				mBallObject->setName("1");
+			}
+		}
+		else{
+			if(p2Strike){
+				p1Score+= pinManager->getHitPins()*2;
+				p2Strike = false;
+			}
+			else{
+				p1Score+= pinManager->getHitPins();
+			}
+			if(mBallObject->getName() != "2"){
+				mBallObject->setName("2");
+			}
 		}
 	}
 
-	else
+}
+
+void BaseApplication::PinSounds(){
+
+}
+
+void BaseApplication::CheckWin(){
+	if(p1Score>=winScore){
+		p1Win = true;
+	}
+	else if(p2Score>=winScore){
+		p2Win = true;
+	}
+	if(p1Win||p2Win){
+		winMenu->mNode->setPosition(0,34,72);
+		winMenu->makeCaption(100,60,300,30,"Press Escape To End");
+		if (p1Win)
+		winMenu->makeCaption(100,90,300,30,"Player 1 Wins!");
+		else
+			winMenu->makeCaption(100,90,300,30,"Player 2 Wins!");
+	}
+	else 
 	{
-		p2Score+= pinManager->getHitPins();
-		if(mBallObject->getName() != "2"){
-			mBallObject->setName("2");
-		}
+		winMenu->mNode->setPosition(-100, 35,70);
+	}
+}
+
+void BaseApplication::CheckStrike(){
+	
+		if (pinManager->getHitPins()>=10 && turnNum == 1){
+			if(mBallObject->getName() =="1"){
+				p1Strike = true;
+			}
+			else {
+				p2Strike=true;
+			}
 	}
 }
 //-------------------------------------------------------------------------------------
 void BaseApplication::UpdateBall(){
+	if(mBallObject->getMove()){
 
-	if((mBallObject->getPosition().x>=29||mBallObject->getPosition().x<=-29) && mBallObject->getGutterB() ==false){
+		srand (time(NULL));
+		float rand2;
+
+		if(mBallObject->getPosition().x>=0){
+			rand2 = 1;
+		}
+		else {
+			rand2 = 2;
+		}
+
+		if(rand2 ==1){
+			mBallObject->setDeviDirection(1);
+		}
+		else	{mBallObject->setDeviDirection(0);}
+	}
+
+	if((mBallObject->getPosition().x>=29.99||mBallObject->getPosition().x<=-29.99) && mBallObject->getGutterB() ==false){
 		FMODsys->playSound(FMOD_CHANNEL_FREE, soundThrow,false, &channel);
 		channel->setVolume(0.8f);       // Set the volume while it is paused.
 		channel->setPaused(false);      // This is where the sound really starts.
@@ -399,27 +486,43 @@ void BaseApplication::UpdateBall(){
 
 	if(mBallObject->getPosition().z <=-340){
 		mBallObject->setVelocity(Ogre::Vector3(0,0,0));
-	mBallObject->setMove(false);	
-		//channel->setPaused(true);
+		mBallObject->setMove(false);	
 		channel->stop();
+		pinManager->resetCheck();
 		TurnControl();
 	}
+
+	if (pressX){
+		mBallObject->setPosition(mBallObject->getPosition() + Ogre::Vector3(0.1,0,0));
+		mArrowObject->setPosition(Ogre::Vector3(mBallObject->getPosition().x,10.0f,mBallObject->getPosition().z));
+	}
+	else if(pressZ){
+		mBallObject->setPosition(mBallObject->getPosition() + Ogre::Vector3(-0.1,0,0));
+		mArrowObject->setPosition(Ogre::Vector3(mBallObject->getPosition().x,10.0f,mBallObject->getPosition().z));
+	}
+
 }
 //-------------------------------------------------------------------------------------
 void BaseApplication::TurnControl(){
-	turnNum++;
-	mBallObject->Reset();
+
+	mBallObject->setSpacePressed(false);
+	if(pinManager->pinsStoped()){
+		turnNum++;
+		mBallObject->Reset();
 		mArrowObject->Reset();
 		camChange=0;
-		mBallObject->setSpacePressed(false);
+	
 		mBallObject->update();
+		
 
-	if(turnNum==2){
-		PlayerUpdate();
-		playerNum*=-1;
-		BallChange();
-		turnNum=0;
-		pinManager->replacePins();
+		if(turnNum>=2 ){
+			PlayerUpdate();
+			playerNum*=-1;
+			BallChange();
+			turnNum=0;
+			pinManager->replacePins();
+			tutorial = false;
+		}
 	}
 }
 //-------------------------------------------------------------------------------------
@@ -427,7 +530,7 @@ void BaseApplication::UpdateCamera(){
 
 	if(mBallObject->getMove()){
 		srand (time(NULL));
-		
+
 		if(camChange ==0){
 			float rand2 = rand()%2+1;//includes 2 because of +1 ie 2 all together
 			if(rand2 == 0){
@@ -442,14 +545,14 @@ void BaseApplication::UpdateCamera(){
 
 			camChange = 1;
 		}
-			
-			mCamera->lookAt(Ogre::Vector3(mBallObject->getPosition().x,mBallObject->getPosition().y,mBallObject->getPosition().z));
+
+		mCamera->lookAt(Ogre::Vector3(mBallObject->getPosition().x,mBallObject->getPosition().y,mBallObject->getPosition().z));
 	}
 
 	if(mBallObject->getPosition().z<=-200){
 
 		srand (time(NULL));
-		
+
 		if(camChange ==1){
 			float rand2 = rand()%3+1;//includes 3 with +1
 			if(rand2 == 0){
@@ -463,7 +566,7 @@ void BaseApplication::UpdateCamera(){
 			{
 				mCamera->setPosition(Ogre::Vector3(30,20,-330));
 			}
-				else if(rand2 == 3)
+			else if(rand2 == 3)
 			{
 				mCamera->setPosition(Ogre::Vector3(0,50,-340));
 			}
@@ -478,152 +581,206 @@ void BaseApplication::UpdateCamera(){
 	}
 }
 //-------------------------------------------------------------------------------------
+void BaseApplication::DrawStats(){
+	playerPanel->mNode->setPosition(-3, 35,70);
+	player->setValue("Player: "+mBallObject->getName());
+	shot->setValue("Shot: "+Ogre::StringConverter::toString(turnNum+1));
+	player1Score->setValue("Player1 Score: "+Ogre::StringConverter::toString(p1Score));
+	player2Score->setValue("Player2 Score: "+Ogre::StringConverter::toString(p2Score));
+	pins->setValue("Pins Standing: "+Ogre::StringConverter::toString(10 - pinManager->getHitPins()));
+}
+//-------------------------------------------------------------------------------------
 bool BaseApplication::keyPressed( const OIS::KeyEvent &arg ){
+
+	if(arg.key == OIS::KC_LSHIFT){
+		if (!menu){
+			menu = true;
+		}
+		else{
+			menu = false;
+		}
+	}
+
 	// First example of control with key input
-	if (arg.key == OIS::KC_SPACE){
-		if(mBallObject->getMove() == false)
+	if (!menu){
+		if (arg.key == OIS::KC_SPACE){
+			if(mBallObject->getMove() == false)
+			{
+				mBallObject->setSpacePressed(true);
+				if (tutorial){
+					tutorialTxt->setValue("Release to throw");
+				}
+			}
+		}
+
+		if(arg.key == OIS::KC_RSHIFT){
+			if(!mBallObject->getMove())
+				drawStats = true;
+
+			if (tutorial){
+				tutorialTxt->setValue("Hold SPACE to increase power");
+			}
+		}
+
+		if(mBallObject->getMove() == false){
+			if (arg.key == OIS::KC_Z){
+				pressZ =true;
+
+			}
+			if (arg.key == OIS::KC_X){
+				pressX = true;
+
+			}
+			if(tutorial){
+				if(arg.key == OIS::KC_X|| arg.key == OIS::KC_Z){
+					tutorialTxt->setValue("Use N and M to rotate");
+				}
+				if(arg.key == OIS::KC_N||arg.key == OIS::KC_M){
+					tutorialTxt->setValue("Press R/Shift to see the stats");
+				}
+			}
+		}
+
+		if(arg.key == OIS::KC_R){
+			mBallObject->Reset();
+			mArrowObject->Reset();
+			camChange=0;
+			mBallObject->setSpacePressed(false);
+			mBallObject->update();
+			pinManager->resetCheck();
+		}
+
+		if(arg.key == OIS::KC_T){
+			pinManager->replacePins();
+		}
+
+		if (arg.key == OIS::KC_ESCAPE)
 		{
-			mBallObject->setSpacePressed(true);
+			mShutDown = true;
 		}
-	}
+		if(arg.key == OIS::KC_L){
 
-	if(mBallObject->getMove() == false){
-		if (arg.key == OIS::KC_Z){
-			mBallObject->setPosition(mBallObject->getPosition() + Ogre::Vector3(-2,0,0));
-			mArrowObject->setPosition(Ogre::Vector3(mBallObject->getPosition().x,10.0f,mBallObject->getPosition().z));
-		}
-		if (arg.key == OIS::KC_X){
-			mBallObject->setPosition(mBallObject->getPosition() + Ogre::Vector3(+1,0,0));
-			mArrowObject->setPosition(Ogre::Vector3(mBallObject->getPosition().x,10.0f,mBallObject->getPosition().z));
-		}
-	}
+			if (loopSong == false){
+				FMODsys->playSound(FMOD_CHANNEL_FREE, backgSnd,false, &channelBack);
+				channelBack->setVolume(0.2f);       // Set the volume while it is paused.
+				loopSong = true;
+				channelBack->setPaused(false);
 
-	if(arg.key == OIS::KC_R){
-		mBallObject->Reset();
-		mArrowObject->Reset();
-		camChange=0;
-		mBallObject->setSpacePressed(false);
-		mBallObject->update();
-	}
-
-	if(arg.key == OIS::KC_T){
-		pinManager->replacePins();
-	}
-
-	if (arg.key == OIS::KC_ESCAPE)
-	{
-		mShutDown = true;
-	}
-	if(arg.key == OIS::KC_L){
-
-		if (loopSong == false){
-			FMODsys->playSound(FMOD_CHANNEL_FREE, backgSnd,false, &channelBack);
-			channelBack->setVolume(0.2f);       // Set the volume while it is paused.
-			loopSong = true;
-			channelBack->setPaused(false);
+			}
 
 		}
-
-	}
-	if(arg.key == OIS::KC_P){		
-		if(loopSong == true ){
-			loopSong=false;
-			channelBack->setPaused(true);
+		if(arg.key == OIS::KC_P){		
+			if(loopSong == true ){
+				loopSong=false;
+				channelBack->setPaused(true);
+			}
 		}
 	}
-	if (arg.key == OIS::KC_G)   // toggle visibility of even rarer debugging details
-	{
-		if (mDetailsPanel->getTrayLocation() == OgreBites::TL_NONE)
-		{
-			mTrayMgr->moveWidgetToTray(mDetailsPanel, OgreBites::TL_TOPRIGHT, 0);
-			mDetailsPanel->show();
-		}
-		else
-		{
-			mTrayMgr->removeWidgetFromTray(mDetailsPanel);
-			mDetailsPanel->hide();
-		}
-	}
-	mDetailsPanel->setParamValue(9, "");
 	mCameraMan->injectKeyDown(arg);
 	return true;
 }
-
 //-----------------------------------------------------------------------------------
 void BaseApplication::BallChange(){
-	if(mBallObject->getName() != "1"){
+	if(mBallObject->getName() == "1"){
 		mBallObject->sphere->setMaterialName("Examples/RustySteel");
 	}
 	else {
-		mBallObject->sphere->setMaterialName("Examples/RustySteel1");
+		mBallObject->sphere->setMaterialName("Examples/white");
 	}
 }
-
+//-----------------------------------------------------------------------------------
 bool BaseApplication::keyReleased( const OIS::KeyEvent &arg ){
 	mCameraMan->injectKeyUp(arg);
 	int num = 0;
-	if (arg.key == OIS::KC_SPACE){
-		if(mBallObject->getMove() == false)
-		{mBallObject->setMove(true);	
-		mBallObject->setSpacePressed(true);
+	if (!menu){
+		if (arg.key == OIS::KC_SPACE){
+			if(mBallObject->getMove() == false)
+			{mBallObject->setMove(true);	
+			mBallObject->setSpacePressed(true);
 
-		FMODsys->playSound(FMOD_CHANNEL_FREE, soundThrow,false, &channel);
-		channel->setVolume(0.8f);       // Set the volume while it is paused.
-		channel->setPaused(false);      // This is where the sound really starts.
-		channel->set3DMinMaxDistance(100,10000);
+			FMODsys->playSound(FMOD_CHANNEL_FREE, soundThrow,false, &channel);
+			channel->setVolume(0.8f);       // Set the volume while it is paused.
+			channel->setPaused(false);      // This is where the sound really starts.
+			channel->set3DMinMaxDistance(100,10000);
 
 
-		if(mBallObject->getMove()){
-		FMODsys->playSound(FMOD_CHANNEL_FREE, soundRoll,false, &channel);
-		channel->setVolume(0.8f);       // Set the volume while it is paused.
+			if(mBallObject->getMove()){
+				FMODsys->playSound(FMOD_CHANNEL_FREE, soundRoll,false, &channel);
+				channel->setVolume(0.8f);       // Set the volume while it is paused.
+				channel->set3DMinMaxDistance(100,10000);
+			}
 
-		channel->set3DMinMaxDistance(100,10000);
+			srand (time(NULL));
+
+
+			mBallObject->setDevtnTmr((rand() % 150/ballpow));
+
+			mBallObject->setPower(ballpow);
+			mBallObject->setVelocity((((mArrowObject->getOrientation()*(Ogre::Vector3::UNIT_Y)*-1)/10))*mBallObject->getPower());
+			}
+			if (tutorial){
+				tutorialTxt->setValue("Now put it all together");
+			}
 		}
-
-		srand (time(NULL));
-		//float rand2 = rand()%2;
-		float rand2;
-
-		if(mBallObject->getPosition().x>=0){
-			rand2 = 1;
+		if (arg.key == OIS::KC_Z){
+			pressZ = false;
 		}
-		else {
-		rand2 = 2;
+		if (arg.key == OIS::KC_X){
+			pressX = false;
 		}
+		if (arg.key == OIS::KC_RSHIFT){
 
-		if(rand2 ==1){
-			mBallObject->setDeviDirection(1);
-		}
-		else	{mBallObject->setDeviDirection(0);}
-
-		mBallObject->setDevtnTmr((rand() % 150/ballpow));
-
-		mBallObject->setPower(ballpow);
-		mBallObject->setVelocity((((mArrowObject->getOrientation()*(Ogre::Vector3::UNIT_Y)*-1)/10))*mBallObject->getPower());
+			drawStats = false;
 		}
 	}
 	return true;
 }
+//-----------------------------------------------------------------------------------
+Ogre::Vector2 BaseApplication::getScreenCenterMouseDistance()
+{
+Ogre::Real posX = (mMousePointer->position().x - mWindow->getViewport(0)->getActualWidth()) / mWindow->getViewport(0)->getActualWidth();
+Ogre::Real posY = (mMousePointer->position().y - mWindow->getViewport(0)->getActualHeight()) / mWindow->getViewport(0)->getActualHeight();
 
+return Ogre::Vector2(posX + 0.5, posY + 0.5);
+}
+//-----------------------------------------------------------------------------------
 bool BaseApplication::mouseMoved( const OIS::MouseEvent &arg )
 {
-	if (mTrayMgr->injectMouseMove(arg)) return true;
-	mCameraMan->injectMouseMove(arg);
-	return true;
-}
+// Set the new camera smooth direction movement
+Ogre::Vector2 distance(getScreenCenterMouseDistance());
+mCamera->setDirection(Ogre::Vector3(0, 0, -1) + Ogre::Vector3(distance.x, -distance.y, 0) / 30);
 
+// Raycast for the actual panel
+Ogre::Real xMove = static_cast<Ogre::Real>(arg.state.X.rel);
+Ogre::Real yMove = static_cast<Ogre::Real>(arg.state.Y.rel);
+
+mNormalizedMousePosition.x += xMove / mWindow->getViewport(0)->getActualWidth();
+mNormalizedMousePosition.y += yMove / mWindow->getViewport(0)->getActualHeight();
+
+mNormalizedMousePosition.x = std::max<Ogre::Real>(mNormalizedMousePosition.x, 0);
+mNormalizedMousePosition.y = std::max<Ogre::Real>(mNormalizedMousePosition.y, 0);
+mNormalizedMousePosition.x = std::min<Ogre::Real>(mNormalizedMousePosition.x, 1);
+mNormalizedMousePosition.y = std::min<Ogre::Real>(mNormalizedMousePosition.y, 1);
+
+mMousePointer->position( mNormalizedMousePosition.x * mWindow->getViewport(0)->getActualWidth(), mNormalizedMousePosition.y * mWindow->getViewport(0)->getActualHeight());
+
+menuPanel->injectMouseMoved(mCamera->getCameraToViewportRay( mNormalizedMousePosition.x, mNormalizedMousePosition.y));
+
+    return true;
+}
+//-----------------------------------------------------------------------------------
 bool BaseApplication::mousePressed( const OIS::MouseEvent &arg, OIS::MouseButtonID id )
 {
-	if (mTrayMgr->injectMouseDown(arg, id)) return true;
-	mCameraMan->injectMouseDown(arg, id);
-	return true;
+	menuPanel->injectMousePressed(arg, id);
+
+return true;
 }
 
 bool BaseApplication::mouseReleased( const OIS::MouseEvent &arg, OIS::MouseButtonID id )
 {
-	if (mTrayMgr->injectMouseUp(arg, id)) return true;
-	mCameraMan->injectMouseUp(arg, id);
-	return true;
+	menuPanel->injectMouseReleased(arg, id);
+  
+    return true;
 }
 
 //Adjust mouse clipping area

@@ -21,19 +21,18 @@ protected:
 	float m_radiusBarrel;
 
 	public:
-	Arrow(Ogre::SceneNode *, Ogre::Vector3, float, float,float);
+	Arrow(Ogre::SceneNode *, Ogre::Vector3, float, float,float);//radius, length, height above ground
 	Ogre::Vector3 ArrowTop;		
-	void rotate(OIS::Keyboard*);
+	void rotate(OIS::Keyboard*);//controls the rotation of the arrow object
 	void rotate();
 	void initialize();
-	//void translate();
 	void setOrientation(Ogre::Quaternion);
 	Ogre::Quaternion getOrientation();
 	Ogre::Vector3 getPosition();
 	void setPosition(Ogre::Vector3);
 	float getLengthBarrel();
 	float getRadiusBarrel();
-	void Reset();
+	void Reset();//sets the arrow back to initial orientation
 };
 
 

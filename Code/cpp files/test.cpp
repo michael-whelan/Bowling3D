@@ -55,15 +55,56 @@ void test::createScene(void)
 	
 	createArrow();
 
-	collisionManager = new CollisionManager();
 	pinManager = new PinManager();
 	pinManager->PlacePins(mSceneMgr);
+
+	
+	mGui3D = new Gui3D::Gui3D(&mMyPurplePanelColors);
+	Ogre::Viewport *viewport = mWindow->getViewport(0);
+
+	mGui3D->createScreen(viewport, "purple", "mainScreen");
+
+	mMousePointerLayer = mGui3D->getScreen("mainScreen")->createLayer();
+
+	mMousePointer = mMousePointerLayer->createRectangle(viewport->getActualWidth()/2,
+		viewport->getActualHeight()/2, 0, 0);//12,18
+	createGamePanel();
+}
+
+void test::createGamePanel(){
+
+	menuPanel = new Gui3D::Panel(mGui3D, mSceneMgr,Ogre::Vector2(300, 400), 10, "purple", "MenuPan");
+	menuPanel->makeCaption(100,10,300,30,"Menu");
+
+	winMenu = new Gui3D::Panel(mGui3D, mSceneMgr,Ogre::Vector2(300, 400), 10, "purple", "WinPan");
+	winMenu->makeCaption(100,10,300,30,"Game Over");
+	
+	mPanel = new Gui3D::Panel(mGui3D, mSceneMgr,Ogre::Vector2(400, 100), 10, "purple", "powerPanel");
+	mPanel->makeCaption(5, -30, 310, 30, "Launch Power");
+	mPanel->mNode->setPosition(3, 35,70);
+	mPanel->hideInternalMousePointer(); 
+	mForceProgressBar = mPanel->makeProgressBar(10, 40, 380, 30);
+
+	tutorialPan = new Gui3D::Panel(mGui3D, mSceneMgr,Ogre::Vector2(150, 65), 10, "purple", "tutorialPan");
+	tutorialPan->makeCaption(10,10,300,30,"");
+	tutorialPan->hideInternalMousePointer(); 
+	tutorialPan->mNode->setPosition(0,35,69);
+
+	tutorialPan2 = new Gui3D::Panel(mGui3D, mSceneMgr,Ogre::Vector2(300, 40), 10, "purple", "tutorialPan2");
+	tutorialPan2->makeCaption(10,-20,300,30,"Instuctions:");
+	tutorialPan2->hideInternalMousePointer(); 
+	tutorialPan2->mNode->setPosition(-4, 33,70);
+
+	playerPanel= new Gui3D::Panel(mGui3D, mSceneMgr,Ogre::Vector2(400, 120), 10, "purple", "playerPanel");
+	playerPanel->makeCaption(5,-30,390,30,"Stats: ");
+	playerPanel->hideInternalMousePointer(); 
+	playerPanel->mNode->setPosition(-3, 35,70);
 }
 
 void test::createBall(void){
 
 	mBallObject = new BowlingBall();
-	mBallObject->sphere = mSceneMgr->createEntity(mBallObject->getName(), "sphere.mesh");
+	mBallObject->sphere = mSceneMgr->createEntity(mBallObject->getName(), "ball.mesh");
 	// Choose a material texture for the cube
 	
 
@@ -75,12 +116,12 @@ void test::createBall(void){
 	float sphereLength = 3;
 
 	// Change size of graphics cube to that of cubeLength
-	double sphereScale = sphereLength/sphereModelLength;
+	double sphereScale = (sphereLength/sphereModelLength)*110;
 
 	sphereNode->scale(sphereScale, sphereScale, sphereScale);
 
 	// Position the cube to sit exactly on the ground
-	sphereNode-> setPosition(Ogre::Vector3(0, sphereLength,0));
+	sphereNode-> setPosition(Ogre::Vector3(0, sphereLength+3,0));
 
 	
 	// Now initialise all of it’s properties to match the //graphics model of the sphere as in ballNode
@@ -90,9 +131,9 @@ void test::createBall(void){
 }
 
 void test::createPin(void){
-	Ogre::Entity *pin = mSceneMgr->createEntity("pin", "column.mesh");
+	Ogre::Entity *pin = mSceneMgr->createEntity("pin", "Cylinder.002.mesh");
 
-	//pin->setMaterialName("PinMat");
+	pin->setMaterialName("Scene.material");
 
 	Ogre::SceneNode *pinNode = mSceneMgr->createSceneNode("pinNode");
 	mSceneMgr->getRootSceneNode()->addChild(pinNode);
@@ -113,7 +154,7 @@ void test::createPin(void){
 
 void test::createArrow(void){
 
-	Ogre::Entity *arrow = mSceneMgr->createEntity("arrow", "Column.mesh");
+	Ogre::Entity *arrow = mSceneMgr->createEntity("arrow", "column.mesh");
 
 	arrow->setMaterialName("Examples/Hilite/Yellow");
 

@@ -1,0 +1,39 @@
+<scene previous_export_time="0" export_time="1390297605.779959" formatVersion="1.0.1" exported_by="c00152570" >
+  <nodes >
+    <node name="Camera" >
+      <position z="42.635208" y="0.000000" x="0.000000" />
+      <rotation qw="0.707107" qz="-0.000000" qy="0.000000" qx="0.707107" />
+      <scale z="1.000000" y="1.000000" x="1.000000" />
+      <game >
+        <sensors />
+        <actuators />
+      </game>
+      <camera name="Camera.001" fov="0.4545220050015406" projectionType="perspective" >
+        <clipping near="0.10000000149011612" farPlaneDist="100.0" far="100.0" nearPlaneDist="0.10000000149011612" />
+      </camera>
+    </node>
+    <node name="Pin" >
+      <position z="-0.000000" y="-0.026051" x="0.052577" />
+      <rotation qw="1.000000" qz="-0.000000" qy="0.000000" qx="0.000000" />
+      <scale z="1.000000" y="1.000000" x="1.000000" />
+      <game >
+        <sensors />
+        <actuators />
+      </game>
+      <entity friction_z="1.0" velocity_min="0.0" friction_x="1.0" inertia_tensor="0.4000000059604645" velocity_max="0.0" friction_y="1.0" actor="False" damping_rot="0.10000000149011612" meshFile="Cylinder.002.mesh" mass="1.0" lock_trans_y="False" lock_trans_x="False" damping_trans="0.03999999910593033" lock_trans_z="False" lock_rot_z="False" lock_rot_x="False" lock_rot_y="False" mass_radius="1.0" ghost="False" physics_type="STATIC" anisotropic_friction="False" name="Cylinder.002" />
+    </node>
+  </nodes>
+  <externals >
+    <item type="material" >
+      <file name="C:\CollegeWork\Project\test\Material.material" />
+    </item>
+    <item type="material" >
+      <file name="C:\CollegeWork\Project\test\Material.001.material" />
+    </item>
+  </externals>
+  <environment >
+    <colourDiffuse g="0.05087608844041824" r="0.05087608844041824" b="0.05087608844041824" />
+    <colourBackground g="0.05087608844041824" r="0.05087608844041824" b="0.05087608844041824" />
+    <colourAmbient g="0.0" r="0.0" b="0.0" />
+  </environment>
+</scene>

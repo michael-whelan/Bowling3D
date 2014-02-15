@@ -9,15 +9,19 @@ BowlingBall::BowlingBall(void){
 	deviDirection = 1;
 	allowdevi = true;
 	gutterBall = false;
-	ballname = "";
+	ballname = "1";
+	roll = 0;
+	maxPower = 15;
+	mFriction = 0.0f;
+	mMass = 6;
 }
 
 BowlingBall::~BowlingBall(void) {
-			
+
 }
 
 Ogre::Vector3 BowlingBall::getPosition() {
-			return mPosition;
+	return mPosition;
 }
 
 Ogre::Vector3 BowlingBall::getVelocity() {
@@ -26,6 +30,10 @@ Ogre::Vector3 BowlingBall::getVelocity() {
 
 Ogre::SceneNode* BowlingBall::getNode(){
 	return mObjectNode;
+}
+
+float BowlingBall::getMass(){
+	return mMass;
 }
 
 bool BowlingBall::getActive(){
@@ -60,8 +68,12 @@ Ogre::String BowlingBall::getName(){
 	return ballname;
 }
 
+int BowlingBall::getMaxPower(){
+	return maxPower;
+}
+
 void BowlingBall::setName(Ogre::String s){
-	
+	ballname = s;
 }
 
 void BowlingBall::setGutterB(bool GB){
@@ -128,10 +140,28 @@ void BowlingBall::update() {
 			}
 		}
 	}
-	mPosition = mPosition + Ogre::Vector3(mVelocity.x+ deviation,mVelocity.y,mVelocity.z); //Next position
+
+	//increase friction
+	mFriction=-(mVelocity.z/250);
+
+	mPosition = mPosition + Ogre::Vector3(mVelocity.x+deviation,mVelocity.y,mVelocity.z); //Next position
+	if(mVelocity.z >-1.10){ //checks the speed and rolls if under a certain amount
+
+		mObjectNode->pitch(-((Ogre::Radian)0.09*Ogre::Math::PI/180)*8*power ,Ogre::Node::TS_WORLD);//rolls ball
+		mObjectNode->roll((Ogre::Radian)mVelocity.x*Ogre::Math::PI/180 ,Ogre::Node::TS_WORLD);
+
+	}
+	else if (!gutterBall){
+		mVelocity.z += mFriction;//if ball is over a speed friction slows it down
+	}
+
 	mObjectNode->setPosition(mPosition);
 	tmr++;
-	
+
+
+
+
+
 	if(mPosition.z <=-340){//stops ball at end of lane
 		deviation = 0;
 		allowdevi=false;
@@ -144,21 +174,24 @@ void BowlingBall::GutterBall(){
 		mPosition = Ogre::Vector3(30,2,mPosition.z);
 		mVelocity.z = power*-1/30;
 		if(mVelocity.z>-0.1){
-				mVelocity.z = -0.2;
-			}
+			mVelocity.z = -0.2;
+		}
 		allowdevi = false;
 		gutterBall = true;
 	}
 	else if(mPosition.x<=-30){
-			mPosition = Ogre::Vector3(-30,2,mPosition.z);
-			mVelocity.z = power*-1/30;
-			if(mVelocity.z>-0.1){
-				mVelocity.z = -0.2;
-			}
-			allowdevi = false;
-			gutterBall=true;
+		mPosition = Ogre::Vector3(-30,2,mPosition.z);
+		mVelocity.z = power*-1/30;
+		if(mVelocity.z>-0.1){
+			mVelocity.z = -0.2;
+		}
+		allowdevi = false;
+		gutterBall=true;
 	}
 }
+
+
+
 
 Ogre::SceneNode* getNode();//returns SceneNode pointer
 double getRadius();  // returns m_radius
@@ -171,6 +204,7 @@ void BowlingBall::Reset(){
 	allowdevi=true;
 	mMove = false;
 	gutterBall = false;
+	mFriction = 0;
 }
 
 
